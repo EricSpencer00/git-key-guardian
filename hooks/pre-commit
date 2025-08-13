@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Git Key Guardian - pre-commit hook
+# Scans staged changes for potential secrets using regex patterns and personal keys.
+
+# Determine paths
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PATTERN_FILE="$REPO_ROOT/patterns/common_patterns.txt"
+PERSONAL_KEYS_FILE="$HOME/.git-key-guardian/personal_keys.txt"
+
+# Ensure personal keys file exists so users can append to it later
+mkdir -p "$HOME/.git-key-guardian"
+touch "$PERSONAL_KEYS_FILE"
+
+# Capture staged diff (no context) and only added lines
+DIFF_OUTPUT="$(git diff --cached --unified=0 --no-color || true)"
+# Keep only added content lines that start with a single '+' (exclude headers like '+++ b/file')
+ADDED_LINES="$(printf "%s\n" "$DIFF_OUTPUT" | awk '/^\+[^+]/ { sub(/^\+/, ""); print }' || true)"
+
+# Exit early if nothing added
+if [ -z "$ADDED_LINES" ]; then
+  exit 0
+fi
+
+matches=""
+has_matches=0
+
+# Prepare patterns (strip inline comments and blank/comment lines) and search
+if [ -f "$PATTERN_FILE" ]; then
+  if [ -s "$PATTERN_FILE" ]; then
+    TMP_PATTERNS="$(mktemp)"
+    # 1) Remove inline comments (whitespace + # ... at end)
+    # 2) Drop blank lines
+    # 3) Drop full-line comments (optional whitespace then #)
+    sed -E 's/[[:space:]]+#.*$//' "$PATTERN_FILE" \
+      | sed -E '/^[[:space:]]*$/d' \
+      | sed -E '/^[[:space:]]*#/d' > "$TMP_PATTERNS"
+    if [ -s "$TMP_PATTERNS" ]; then
+      PATTERN_MATCHES="$(printf "%s\n" "$ADDED_LINES" | grep -En -f "$TMP_PATTERNS" || true)"
+      if [ -n "$PATTERN_MATCHES" ]; then
+        matches="$matches"$'\n'"$PATTERN_MATCHES"
+        has_matches=1
+      fi
+    fi
+    rm -f "$TMP_PATTERNS"
+  fi
+fi
+
+# Search personal keys as fixed strings (ignore comments and blanks)
+if [ -s "$PERSONAL_KEYS_FILE" ]; then
+  TMP_KEYS="$(mktemp)"
+  sed -e 's/^[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$PERSONAL_KEYS_FILE" > "$TMP_KEYS"
+  if [ -s "$TMP_KEYS" ]; then
+    KEYS_MATCHES="$(printf "%s\n" "$ADDED_LINES" | grep -Fn -f "$TMP_KEYS" || true)"
+    if [ -n "$KEYS_MATCHES" ]; then
+      matches="$matches"$'\n'"$KEYS_MATCHES"
+      has_matches=1
+    fi
+  fi
+  rm -f "$TMP_KEYS"
+fi
+
+# If anything matched, prompt the user
+if [ "$has_matches" -eq 1 ]; then
+  echo ""
+  echo "git-key-guardian: Potential secrets detected in staged changes."
+  if [ -s "$PATTERN_FILE" ]; then
+    echo "Patterns: $PATTERN_FILE"
+  else
+    echo "Patterns: (none found at $PATTERN_FILE)"
+  fi
+  echo "Personal keys file: $PERSONAL_KEYS_FILE"
+  echo ""
+  echo "Sample matches (showing up to first 20 lines):"
+  printf "%s\n" "$matches" | sed '/^$/d' | head -n 20 | sed 's/^/  > /'
+  echo ""
+  read -r -p "Proceed with commit anyway? [y/N]: " reply
+  case "$reply" in
+    [yY][eE][sS]|[yY])
+      echo "Proceeding with commit..."
+      exit 0
+      ;;
+    *)
+      echo "Aborting commit. Please remove secrets from your changes."
+      exit 1
+      ;;
+  esac
+fi
+
+exit 0

@@ -1,0 +1,14 @@
+# Common secret patterns (regex). One per line. Inline comments allowed after whitespace '#'.
+# Update this file freely; pre-commit hook consumes it dynamically.
+
+# Stripe Live Key
+sk_live_[0-9a-zA-Z]{24}
+
+# OpenAI Key (older format)
+sk-[a-zA-Z0-9]{48}
+
+# AWS Access Key ID
+AKIA[0-9A-Z]{16}
+
+# SSH Public Key
+ssh-rsa\s+[A-Za-z0-9+/=]+
