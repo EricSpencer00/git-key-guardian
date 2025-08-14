@@ -7,7 +7,7 @@ A lightweight Git pre-commit hook that scans staged changes for common secret pa
 Copy-paste to install globally:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/your-org/git-key-guardian/main/scripts/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/EricSpencer00/git-key-guardian/v1/scripts/install.sh)"
 ```
 
 Or install from a local clone:
