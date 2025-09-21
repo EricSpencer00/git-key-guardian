@@ -6,11 +6,15 @@ set -euo pipefail
 HOOKS_DIR="$HOME/.git-key-guardian/hooks"
 mkdir -p "$HOOKS_DIR"
 
-# Copy pre-commit hook
+# Copy pre-commit hook and patterns
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cp "$REPO_ROOT/hooks/pre-commit" "$HOOKS_DIR/pre-commit"
 chmod +x "$HOOKS_DIR/pre-commit"
+
+# Copy patterns file to global location
+mkdir -p "$HOME/.git-key-guardian/patterns"
+cp "$REPO_ROOT/patterns/common_patterns.txt" "$HOME/.git-key-guardian/patterns/common_patterns.txt"
 
 # Configure git to use the shared hooks path
 if git config --global core.hooksPath >/dev/null 2>&1; then
@@ -30,7 +34,7 @@ cat <<'EOS'
 ✅ Installed Git Key Guardian globally.
 
 Add your personal keys to: $HOME/.git-key-guardian/personal_keys.txt
-Update regex patterns in the repo file: patterns/common_patterns.txt
+Update regex patterns in: $HOME/.git-key-guardian/patterns/common_patterns.txt
 
 To uninstall, either remove the shared hooks directory or run:
   git config --global --unset core.hooksPath

@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Determine paths
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-PATTERN_FILE="$REPO_ROOT/patterns/common_patterns.txt"
+PATTERN_FILE="$HOME/.git-key-guardian/patterns/common_patterns.txt"
 PERSONAL_KEYS_FILE="$HOME/.git-key-guardian/personal_keys.txt"
 
 # Ensure personal keys file exists so users can append to it later
